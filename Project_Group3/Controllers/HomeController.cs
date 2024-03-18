@@ -45,7 +45,7 @@ namespace Project_Group3.Controllers
             smtpRepository = new StmpRepository();
             courseProgressRepository = new CourseProgressRepository();
             chapterProgressRepository = new ChapterProgressRepository();
-            lessonProgressRepository = new LessonProgressRepository();
+            // lessonProgressRepository = new LessonProgressRepository();
         }
 
 
