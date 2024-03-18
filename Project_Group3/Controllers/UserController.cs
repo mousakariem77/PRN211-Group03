@@ -46,10 +46,7 @@ namespace Project_Group3.Controllers
             {
                 return RedirectToAction("Index", "Home");
             }
-            else
-            {
-                return View();
-            }
+            else return View();
         }
 
 
@@ -58,43 +55,54 @@ namespace Project_Group3.Controllers
         {
             try
             {
-
-                if (!ModelState.IsValid)
-                {
-                    return View(model);
-                }
+                if (!ModelState.IsValid) return View(model);
 
                 var instructor = instructorRepository.GetInstructorByEmailOrUser(model.EmailOrUsername);
                 var learner = learnerRepository.GetLearnerByEmailOrUser(model.EmailOrUsername);
 
+                var modelsPass = this.GetHashedPassword(model.Password);
+                Console.WriteLine("Form: " + this.GetHashedPassword(model.Password));
 
-                if (instructor != null && instructor.Password == model.Password)
+                if (instructor != null)
                 {
-                    // HttpContext.Session.SetString("UserRole", "Instructor");
-                    HttpContext.Session.SetInt32("InsID", instructor.InstructorId);
-                    if(instructor.Status == "Wait"){
-                        ViewBag.err = "The account has not been moderated!!!";
-                        return View();
-                    }else if(instructor.Status == "Delete"){
-                        ViewBag.err = "The account no longer exists!!!";
-                        return View();
+                    System.Console.WriteLine("Instructor: " + instructor.Password);
+                    if (instructor.Password == modelsPass)
+                    {
+                        if (instructor.Status == "Wait")
+                        {
+                            ViewBag.err = "The account has not been moderated!!!";
+                            return View();
+                        }
+                        else if (instructor.Status == "Delete")
+                        {
+                            ViewBag.err = "The account no longer exists!!!";
+                            return View();
+                        }
+                        else
+                        {
+                            HttpContext.Session.SetInt32("InsID", instructor.InstructorId);
+                            Response.Cookies.Append("Role", "instructor");
+                            Response.Cookies.Append("Name", instructor.Username);
+                            Response.Cookies.Append("ID", instructor.InstructorId.ToString());
+                            return RedirectToAction("Index", "Home");
+                        }
                     }
-                    Response.Cookies.Append("Role", "instructor");
-                    Response.Cookies.Append("Name", instructor.Username);
-                    Response.Cookies.Append("ID", instructor.InstructorId.ToString());
-                    return RedirectToAction("Index", "Home");
-
+                    ViewBag.err = "Password incorrectly please enter again!";
+                    return View(model);
                 }
-                else if (learner != null && learner.Password == model.Password)
+                else if (learner != null)
                 {
-                    // HttpContext.Session.SetString("UserRole", "Learner");
-                    Response.Cookies.Append("Role", "learner");
-                    HttpContext.Session.SetInt32("LearnerID", learner.LearnerId);
-                    Console.WriteLine($"LearnerID: {HttpContext.Session.GetInt32("LearnerID")}");
-                    // Response.Cookies.Append("MyCookie", learner.LearnerId.ToString());
-                    Response.Cookies.Append("Name", learner.Username);
-                    Response.Cookies.Append("ID", learner.LearnerId.ToString());
-                    return RedirectToAction("Index", "Home");
+                    System.Console.WriteLine("Learner: " + learner.Password);
+                    if (learner.Password == model.Password)
+                    {
+                        HttpContext.Session.SetInt32("LearnerID", learner.LearnerId);
+                        Response.Cookies.Append("Role", "learner");
+                        Response.Cookies.Append("Name", learner.Username);
+                        Response.Cookies.Append("ID", learner.LearnerId.ToString());
+                        return RedirectToAction("Index", "Home");
+                    }
+                    ViewBag.err = "Password incorrectly please enter again!";
+                    return View(model);
                 }
                 else
                 {
@@ -109,11 +117,7 @@ namespace Project_Group3.Controllers
             }
         }
 
-
-        public IActionResult Register()
-        {
-            return View();
-        }
+        public IActionResult Register() => View();
 
         [HttpPost]
         [ValidateAntiForgeryToken]
@@ -121,12 +125,8 @@ namespace Project_Group3.Controllers
         {
             try
             {
-                if (!ModelState.IsValid)
-                {
-                    return View(model);
-                }
+                if (!ModelState.IsValid) return View(model);
 
-                // Kiểm tra tuổi
                 DateTime currentDate = DateTime.Now;
                 DateTime minimumBirthDate = currentDate.AddYears(-18); // Ngày sinh tối thiểu để đủ 18 tuổi
 
@@ -146,7 +146,7 @@ namespace Project_Group3.Controllers
                     Email = model.Email,
                     Country = model.Country,
                     Username = model.Username,
-                    Password = model.Password,
+                    Password = this.GetHashedPassword(model.Password),
                     Picture = model.Picture,
                     RegistrationDate = DateTime.Now.Date,
                     Status = "Active",
@@ -160,7 +160,6 @@ namespace Project_Group3.Controllers
             }
             catch (Exception ex)
             {
-                // Xử lý lỗi nếu có
                 ViewBag.err = "Đã xảy ra lỗi khi đăng ký: " + ex.Message;
                 return View(model);
             }
@@ -168,7 +167,6 @@ namespace Project_Group3.Controllers
 
         public IActionResult InstructorRegister()
         {
-            // TODO: Your code here
             return View();
         }
 
@@ -190,7 +188,6 @@ namespace Project_Group3.Controllers
                     return View(model);
                 }
 
-                // Kiểm tra tuổi
                 DateTime currentDate = DateTime.Now;
                 DateTime minimumBirthDate = currentDate.AddYears(-21); // Ngày sinh tối thiểu để đủ 21 tuổi
 
@@ -210,7 +207,7 @@ namespace Project_Group3.Controllers
                     Email = model.Email,
                     Country = model.Country,
                     Username = model.Username,
-                    Password = model.Password,
+                    Password = this.GetHashedPassword(model.Password),
                     Picture = model.Picture,
                     RegistrationDate = DateTime.Now.Date,
                     Income = 0,
@@ -235,16 +232,12 @@ namespace Project_Group3.Controllers
 
         public IActionResult Logout()
         {
-            // Xóa cookie
             foreach (var cookie in HttpContext.Request.Cookies.Keys)
             {
                 Response.Cookies.Delete(cookie);
             }
+            HttpContext.Session.Clear();
 
-            // Xóa session
-            HttpContext.Session.Clear(); // Hoặc HttpContext.Session.Remove("UserId");
-
-            // Chuyển hướng đến trang login hoặc trang chính
             return RedirectToAction("Login", "User");
         }
 
@@ -257,12 +250,9 @@ namespace Project_Group3.Controllers
             return otp;
         }
 
-        public IActionResult ResetPassword()
-        {
-            // TODO: Your code here
-            return View();
-        }
-        
+        public IActionResult ResetPassword() => View();
+
+
         public IActionResult otp(string email)
         {
             int random = Random();
@@ -330,12 +320,12 @@ namespace Project_Group3.Controllers
                     var instructor = instructorRepository.GetInstructorByEmail(email);
                     if (learner != null)
                     {
-                        learnerRepository.UpdatePass(learner.LearnerId, password);
+                        learnerRepository.UpdatePass(learner.LearnerId, this.GetHashedPassword(password));
                     }
 
                     if (instructor != null)
                     {
-                        instructorRepository.UpdatePass(instructor.InstructorId, password);
+                        instructorRepository.UpdatePass(instructor.InstructorId, this.GetHashedPassword(password));
                     }
                 }
                 return RedirectToAction("Login");
@@ -359,24 +349,21 @@ namespace Project_Group3.Controllers
                     var instructor = instructorRepository.GetInstructorByEmail(email);
                     if (learner != null)
                     {
-                        learnerRepository.UpdatePass(learner.LearnerId, newPassword);
+                        learnerRepository.UpdatePass(learner.LearnerId, this.GetHashedPassword(newPassword));
                     }
 
                     if (instructor != null)
                     {
-                        instructorRepository.UpdatePass(instructor.InstructorId, newPassword);
+                        instructorRepository.UpdatePass(instructor.InstructorId, this.GetHashedPassword(newPassword));
                     }
                 }
-                
+
                 foreach (var cookie in HttpContext.Request.Cookies.Keys)
                 {
                     Response.Cookies.Delete(cookie);
                 }
+                HttpContext.Session.Clear();
 
-                // Xóa session
-                HttpContext.Session.Clear(); // Hoặc HttpContext.Session.Remove("UserId");
-
-                // Chuyển hướng đến trang login hoặc trang chính
                 return RedirectToAction("Login", "User");
             }
             catch (System.Exception)
@@ -396,7 +383,6 @@ namespace Project_Group3.Controllers
                 {
                     sb.Append(hashBytes[i].ToString("x2"));
                 }
-
                 return sb.ToString();
             }
         }
